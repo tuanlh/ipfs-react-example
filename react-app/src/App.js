@@ -8,7 +8,7 @@ class App extends Component {
 
   state = {
     ipfsHash: null,
-    buffer: '',
+    buffer: [],
     isSubmit: false,
     isSucceed: false,
     sent: false
@@ -17,15 +17,26 @@ class App extends Component {
   captureFile = (event) => {
     event.stopPropagation();
     event.preventDefault();
-    const file = event.target.files[0];
-    let reader = new window.FileReader();
-    reader.readAsArrayBuffer(file);
-    reader.onloadend = () => this.convertToBuffer(reader);
+    //const file = event.target.files[0];
+    console.log(event.target.files);
+    for(let i=0; i < event.target.files.length; i++) {
+      const file = event.target.files[i];
+      let reader = new window.FileReader();
+      reader.readAsArrayBuffer(file);
+      reader.onloadend = () => this.convertToBuffer(reader, file.name);
+    }
+    
   };
 
-  convertToBuffer = async (reader) => {
+  convertToBuffer = async (reader, filename) => {
+    let {buffer} = this.state;
+    console.log(filename);
     //file is converted to a buffer to prepare for uploading to IPFS
-    const buffer = await Buffer.from(reader.result);
+    let tmp = {
+      path: '/tmp/' + filename,
+      content: reader.result
+    }
+    buffer.push(tmp);
     //set this buffer - using es6 syntax
     this.setState({ buffer });
   };
@@ -34,6 +45,7 @@ class App extends Component {
   onSubmit = async (event) => {
     event.preventDefault();
     this.setState({ isSubmit: true });
+    //console.log(this.state.buffer);
     //save document to IPFS,return its hash#, and set hash# to state
     //https://github.com/ipfs/interface-ipfs-core/blob/master/SPEC/FILES.md#add 
     await ipfs.add(this.state.buffer, (err, ipfsHash) => {
@@ -41,11 +53,16 @@ class App extends Component {
       if (err) {
         console.log(err, ipfsHash);
       } else {
-        //setState by setting ipfsHash to ipfsHash[0].hash 
-        this.setState({ ipfsHash: ipfsHash[0].hash, isSucceed: true });
+        //setState by setting ipfsHash to ipfsHash[0].hash
+        this.setState({ ipfsHash: ipfsHash[ipfsHash.length-1].hash, isSucceed: true });
       }
-
     });
+    // ipfs.get(this.state.ipfsHash, function (err, files) {
+    //   files.forEach((file) => {
+    //     console.log(file.path);
+    //     console.log(file.content.toString('utf8'));
+    //   })
+    // })
   };
 
   render() {
@@ -58,6 +75,7 @@ class App extends Component {
           <input
             type="file"
             onChange={this.captureFile}
+            multiple
           />
           <button
             type="submit"
